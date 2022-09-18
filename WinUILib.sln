@@ -3,7 +3,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinUILib", "WinUILib\WinUILib.csproj", "{36CE67E2-20FD-4C21-B479-5D8EE0B2D3D8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WinUILib", "WinUILib\WinUILib.csproj", "{36CE67E2-20FD-4C21-B479-5D8EE0B2D3D8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A7BA728F-AB4A-4F40-8EF1-F7A3DDA0CF26}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

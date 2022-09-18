@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 
-namespace Xunkong.Desktop.Helpers;
+namespace Scighost.WinUILib.Helpers;
 
 public static class ContentDialogHelper
 {

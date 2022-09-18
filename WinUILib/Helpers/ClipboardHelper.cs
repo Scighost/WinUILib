@@ -2,7 +2,7 @@
 using Windows.Storage;
 using Windows.Storage.Streams;
 
-namespace Xunkong.Desktop.Helpers;
+namespace Scighost.WinUILib.Helpers;
 
 public static class ClipboardHelper
 {
