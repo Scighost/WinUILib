@@ -8,16 +8,12 @@
 		<Nullable>enable</Nullable>
 		<LangVersion>preview</LangVersion>
 		<AssemblyName>Scighost.WinUILib</AssemblyName>
-		<Version>0.1.0-beta2</Version>
+		<Version>0.1.0-beta4</Version>
 		<Authors>Scighost</Authors>
 		<RepositoryUrl>https://github.com/Scighost/WinUILib</RepositoryUrl>
 	</PropertyGroup>
-	<ItemGroup>
-	  <None Include="..\.editorconfig" Link=".editorconfig" />
-	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="CommunityToolkit.WinUI.UI" Version="7.1.2" />
 		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.1.0" />
 		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.1" />
 	</ItemGroup>

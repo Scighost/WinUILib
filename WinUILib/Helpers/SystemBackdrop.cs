@@ -6,23 +6,25 @@ using WinRT;
 
 namespace Scighost.WinUILib.Helpers;
 
-public class SystemBackdropHelper
+public class SystemBackdrop
 {
 
     private readonly Window m_window;
+
     private WindowsSystemDispatcherQueueHelper? m_wsdqHelper; // See below for implementation.
+
     private SystemBackdropConfiguration? m_configurationSource;
 
+    private MicaController? m_micaController;
+
+    private DesktopAcrylicController? m_acrylicController;
 
     private bool m_alwaysActive;
 
 
-    public MicaController? MicaController { get; private set; }
-    public DesktopAcrylicController? AcrylicController { get; private set; }
 
 
-
-    public SystemBackdropHelper(Window window)
+    public SystemBackdrop(Window window)
     {
         ArgumentNullException.ThrowIfNull(window);
         m_window = window;
@@ -30,9 +32,31 @@ public class SystemBackdropHelper
 
 
 
+    public bool Reset()
+    {
+        if (m_micaController != null)
+        {
+            m_micaController.Dispose();
+            m_micaController = null;
+        }
+        if (m_acrylicController != null)
+        {
+            m_acrylicController.Dispose();
+            m_acrylicController = null;
+        }
+        m_window.Activated -= Window_Activated;
+        m_window.Closed -= Window_Closed;
+        ((FrameworkElement)m_window.Content).ActualThemeChanged -= Window_ThemeChanged;
+        m_configurationSource = null;
+        m_alwaysActive = false;
+        return true;
+    }
+
+
 
     public bool TrySetMica(bool useMicaAlt = false, bool fallbackToAcrylic = false, bool alwaysActive = false)
     {
+        Reset();
         if (MicaController.IsSupported())
         {
             m_wsdqHelper = new WindowsSystemDispatcherQueueHelper();
@@ -48,12 +72,12 @@ public class SystemBackdropHelper
             m_configurationSource.IsInputActive = true;
             SetConfigurationSourceTheme();
 
-            MicaController = new MicaController { Kind = useMicaAlt ? MicaKind.BaseAlt : MicaKind.Base };
+            m_micaController = new MicaController { Kind = useMicaAlt ? MicaKind.BaseAlt : MicaKind.Base };
 
             // Enable the system backdrop.
             // Note: Be sure to have "using WinRT;" to support the Window.As<...>() call.
-            MicaController.AddSystemBackdropTarget(m_window.As<ICompositionSupportsSystemBackdrop>());
-            MicaController.SetSystemBackdropConfiguration(m_configurationSource);
+            m_micaController.AddSystemBackdropTarget(m_window.As<ICompositionSupportsSystemBackdrop>());
+            m_micaController.SetSystemBackdropConfiguration(m_configurationSource);
 
             m_alwaysActive = alwaysActive;
             return true; // succeeded
@@ -72,6 +96,7 @@ public class SystemBackdropHelper
 
     public bool TrySetAcrylic(bool alwaysActive = false)
     {
+        Reset();
         if (DesktopAcrylicController.IsSupported())
         {
             m_wsdqHelper = new WindowsSystemDispatcherQueueHelper();
@@ -87,12 +112,12 @@ public class SystemBackdropHelper
             m_configurationSource.IsInputActive = true;
             SetConfigurationSourceTheme();
 
-            AcrylicController = new DesktopAcrylicController();
+            m_acrylicController = new DesktopAcrylicController();
 
             // Enable the system backdrop.
             // Note: Be sure to have "using WinRT;" to support the Window.As<...>() call.
-            AcrylicController.AddSystemBackdropTarget(m_window.As<ICompositionSupportsSystemBackdrop>());
-            AcrylicController.SetSystemBackdropConfiguration(m_configurationSource);
+            m_acrylicController.AddSystemBackdropTarget(m_window.As<ICompositionSupportsSystemBackdrop>());
+            m_acrylicController.SetSystemBackdropConfiguration(m_configurationSource);
 
             m_alwaysActive = alwaysActive;
             return true; // succeeded
@@ -126,20 +151,7 @@ public class SystemBackdropHelper
 
     private void Window_Closed(object sender, WindowEventArgs args)
     {
-        // Make sure any Mica/Acrylic controller is disposed
-        // so it doesn't try to use this closed window.
-        if (MicaController != null)
-        {
-            MicaController.Dispose();
-            MicaController = null;
-        }
-        if (AcrylicController != null)
-        {
-            AcrylicController.Dispose();
-            AcrylicController = null;
-        }
-        m_window.Activated -= Window_Activated;
-        m_configurationSource = null;
+        Reset();
     }
 
 

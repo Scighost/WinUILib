@@ -337,18 +337,6 @@ public abstract class CacheBase<T>
         return Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(uri.ToString())));
     }
 
-    private static ulong CreateHash64(string str)
-    {
-        byte[] utf8 = Encoding.UTF8.GetBytes(str);
-
-        ulong value = (ulong)utf8.Length;
-        for (int n = 0; n < utf8.Length; n++)
-        {
-            value += (ulong)utf8[n] << n * 5 % 56;
-        }
-
-        return value;
-    }
 
     private async Task<T?> GetItemAsync(Uri uri, bool throwOnError, bool preCacheOnly, CancellationToken cancellationToken, List<KeyValuePair<string, object>>? initializerKeyValues = null)
     {
@@ -473,12 +461,14 @@ public abstract class CacheBase<T>
     {
         T? instance = default;
 
-        using var stream = await HttpClient.GetStreamAsync(uri, cancellationToken);
+        using var hs = await HttpClient.GetStreamAsync(uri, cancellationToken);
+        var ms = new MemoryStream();
+        await hs.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+        await ms.FlushAsync().ConfigureAwait(false);
 
         using var fs = await baseFile.OpenStreamForWriteAsync();
-        await stream.CopyToAsync(fs, cancellationToken);
-
-        await fs.FlushAsync();
+        await ms.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
+        await fs.FlushAsync().ConfigureAwait(false);
 
         // if its pre-cache we aren't looking to load items in memory
         if (!preCacheOnly)
@@ -539,7 +529,11 @@ public abstract class CacheBase<T>
         }
     }
 
-    private async Task<StorageFolder> GetCacheFolderAsync()
+    /// <summary>
+    /// Get cache folder, create if not exists.
+    /// </summary>
+    /// <returns></returns>
+    public async Task<StorageFolder> GetCacheFolderAsync()
     {
         if (_cacheFolder == null)
         {
@@ -547,5 +541,15 @@ public abstract class CacheBase<T>
         }
 
         return _cacheFolder!;
+    }
+
+    /// <summary>
+    /// Get cache file path whether or not cached.
+    /// </summary>
+    /// <param name="uri"></param>
+    /// <returns></returns>
+    public string GetCacheFilePath(Uri uri)
+    {
+        return Path.Combine(_cacheFolder.Path, GetCacheFileName(uri));
     }
 }
