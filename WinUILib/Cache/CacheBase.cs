@@ -82,7 +82,7 @@ public abstract class CacheBase<T>
         {
             if (_httpClient == null)
             {
-                var messageHandler = new HttpClientHandler() { MaxConnectionsPerServer = 20 };
+                var messageHandler = new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All };
 
                 _httpClient = new HttpClient(messageHandler);
             }
@@ -94,33 +94,29 @@ public abstract class CacheBase<T>
     /// <summary>
     /// Initializes FileCache and provides root folder and cache folder name
     /// </summary>
-    /// <param name="folder">Folder that is used as root for cache</param>
-    /// <param name="folderName">Cache folder name</param>
-    /// <param name="httpMessageHandler">instance of <see cref="HttpMessageHandler"/></param>
+    /// <param name="folder">Folder for cache</param>
+    /// <param name="httpClient">instance of <see cref="System.Net.Http.HttpClient"/></param>
     /// <returns>awaitable task</returns>
-    public virtual async Task InitializeAsync(StorageFolder? folder = null, string? folderName = null, HttpMessageHandler? httpMessageHandler = null)
+    public virtual void Initialize(StorageFolder folder, HttpClient? httpClient = null)
     {
-        _baseFolder = folder;
-        _cacheFolderName = folderName;
+        _cacheFolder = folder;
 
-        _cacheFolder = await GetCacheFolderAsync().ConfigureAwait(false);
-
-        if (httpMessageHandler != null)
+        if (httpClient != null)
         {
-            _httpClient = new HttpClient(httpMessageHandler);
+            _httpClient = httpClient;
         }
     }
 
     /// <summary>
     /// Initializes FileCache and provides root folder and cache folder name
     /// </summary>
-    /// <param name="folder">Folder that is used as root for cache</param>
+    /// <param name="baseFolder">Folder that is used as root for cache</param>
     /// <param name="folderName">Cache folder name</param>
     /// <param name="httpClient">instance of <see cref="System.Net.Http.HttpClient"/></param>
     /// <returns>awaitable task</returns>
-    public virtual async Task InitializeAsync(StorageFolder? folder = null, string? folderName = null, HttpClient? httpClient = null)
+    public virtual async Task InitializeAsync(StorageFolder? baseFolder = null, string? folderName = null, HttpClient? httpClient = null)
     {
-        _baseFolder = folder;
+        _baseFolder = baseFolder;
         _cacheFolderName = folderName;
 
         _cacheFolder = await GetCacheFolderAsync().ConfigureAwait(false);
@@ -465,6 +461,7 @@ public abstract class CacheBase<T>
         var ms = new MemoryStream();
         await hs.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
         await ms.FlushAsync().ConfigureAwait(false);
+        ms.Position = 0;
 
         using var fs = await baseFile.OpenStreamForWriteAsync();
         await ms.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
@@ -550,6 +547,10 @@ public abstract class CacheBase<T>
     /// <returns></returns>
     public string GetCacheFilePath(Uri uri)
     {
-        return Path.Combine(_cacheFolder.Path, GetCacheFileName(uri));
+        if (_cacheFolder == null)
+        {
+            ForceInitialiseAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+        return Path.Combine(_cacheFolder!.Path, GetCacheFileName(uri));
     }
 }

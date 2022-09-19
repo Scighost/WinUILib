@@ -16,15 +16,12 @@ namespace Scighost.WinUILib.Cache;
 /// </summary>
 public class ImageCache : CacheBase<BitmapImage>
 {
-    private const string DateAccessedProperty = "System.DateAccessed";
 
     /// <summary>
     /// Private singleton field.
     /// </summary>
     [ThreadStatic]
     private static ImageCache? _instance;
-
-    private readonly List<string> _extendedPropertyNames = new();
 
     /// <summary>
     /// Gets public singleton property.
@@ -43,7 +40,6 @@ public class ImageCache : CacheBase<BitmapImage>
     public ImageCache(DispatcherQueue? dispatcherQueue = null)
     {
         DispatcherQueue = dispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
-        _extendedPropertyNames.Add(DateAccessedProperty);
     }
 
     /// <summary>
@@ -122,43 +118,6 @@ public class ImageCache : CacheBase<BitmapImage>
         });
 
     }
-
-    /// <summary>
-    /// Override-able method that checks whether file is valid or not.
-    /// </summary>
-    /// <param name="file">storage file</param>
-    /// <param name="duration">cache duration</param>
-    /// <param name="treatNullFileAsOutOfDate">option to mark uninitialized file as expired</param>
-    /// <returns>bool indicate whether file has expired or not</returns>
-    protected override async Task<bool> IsFileOutOfDateAsync(StorageFile file, TimeSpan duration, bool treatNullFileAsOutOfDate = true)
-    {
-        if (file == null)
-        {
-            return treatNullFileAsOutOfDate;
-        }
-
-        // Get extended properties.
-        IDictionary<string, object> extraProperties =
-            await file.Properties.RetrievePropertiesAsync(_extendedPropertyNames).AsTask().ConfigureAwait(false);
-
-        // Get date-accessed property.
-        var propValue = extraProperties[DateAccessedProperty];
-
-        if (propValue != null)
-        {
-            var lastAccess = propValue as DateTimeOffset?;
-
-            if (lastAccess.HasValue)
-            {
-                return DateTime.Now.Subtract(lastAccess.Value.DateTime) > duration;
-            }
-        }
-
-        var properties = await file.GetBasicPropertiesAsync().AsTask().ConfigureAwait(false);
-
-        return properties.Size == 0 || DateTime.Now.Subtract(properties.DateModified.DateTime) > duration;
-    }
-
 
 
 }
