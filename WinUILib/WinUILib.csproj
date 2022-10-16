@@ -8,9 +8,10 @@
 		<Nullable>enable</Nullable>
 		<LangVersion>preview</LangVersion>
 		<AssemblyName>Scighost.WinUILib</AssemblyName>
-		<Version>0.1.0-beta8</Version>
+		<Version>0.1.0-dev.1</Version>
 		<Authors>Scighost</Authors>
 		<RepositoryUrl>https://github.com/Scighost/WinUILib</RepositoryUrl>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 	</PropertyGroup>
 
 	<ItemGroup>

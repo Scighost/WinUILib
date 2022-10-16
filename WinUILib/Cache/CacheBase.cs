@@ -1,9 +1,6 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
-
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -13,15 +10,14 @@ using Windows.Storage;
 
 namespace Scighost.WinUILib.Cache;
 
-/// <summary>
-/// Provides methods and tools to cache files in a folder
-/// </summary>
-/// <typeparam name="T">Generic type as supplied by consumer of the class</typeparam>
 public abstract class CacheBase<T>
 {
+
     private class ConcurrentRequest
     {
         public Task<T?> Task { get; set; }
+
+        public Progress<DownloadProgress> Progress { get; set; }
 
         public bool EnsureCachedCopy { get; set; }
     }
@@ -35,7 +31,7 @@ public abstract class CacheBase<T>
 
     private ConcurrentDictionary<string, ConcurrentRequest> _concurrentTasks = new ConcurrentDictionary<string, ConcurrentRequest>();
 
-    private HttpClient _httpClient;
+    protected HttpClient _httpClient;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CacheBase{T}"/> class.
@@ -76,20 +72,8 @@ public abstract class CacheBase<T>
     /// <summary>
     /// Gets instance of <see cref="HttpClient"/>
     /// </summary>
-    protected HttpClient HttpClient
-    {
-        get
-        {
-            if (_httpClient == null)
-            {
-                var messageHandler = new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All };
+    protected HttpClient HttpClient => _httpClient ??= new HttpClient();
 
-                _httpClient = new HttpClient(messageHandler);
-            }
-
-            return _httpClient;
-        }
-    }
 
     /// <summary>
     /// Initializes FileCache and provides root folder and cache folder name
@@ -233,7 +217,7 @@ public abstract class CacheBase<T>
     /// <returns>Awaitable Task</returns>
     public Task PreCacheAsync(Uri uri, bool throwOnError = false, bool storeToMemoryCache = false, CancellationToken cancellationToken = default)
     {
-        return GetItemAsync(uri, throwOnError, !storeToMemoryCache, cancellationToken, null);
+        return GetItemAsync(uri, throwOnError, !storeToMemoryCache, cancellationToken);
     }
 
     /// <summary>
@@ -242,11 +226,10 @@ public abstract class CacheBase<T>
     /// <param name="uri">Uri of the item.</param>
     /// <param name="throwOnError">Indicates whether or not exception should be thrown if item cannot be found / downloaded.</param>
     /// <param name="cancellationToken">instance of <see cref="CancellationToken"/></param>
-    /// <param name="initializerKeyValues">key value pairs used when initializing instance of generic type</param>
     /// <returns>an instance of Generic type</returns>
-    public Task<T?> GetFromCacheAsync(Uri uri, bool throwOnError = false, CancellationToken cancellationToken = default, List<KeyValuePair<string, object>>? initializerKeyValues = null)
+    public Task<T?> GetFromCacheAsync(Uri uri, bool throwOnError = false, CancellationToken cancellationToken = default)
     {
-        return GetItemAsync(uri, throwOnError, false, cancellationToken, initializerKeyValues);
+        return GetItemAsync(uri, throwOnError, false, cancellationToken);
     }
 
     /// <summary>
@@ -288,21 +271,36 @@ public abstract class CacheBase<T>
         return instance;
     }
 
+
+    public Progress<DownloadProgress>? GetProgress(Uri uri)
+    {
+        string fileName = GetCacheFileName(uri);
+        _concurrentTasks.TryGetValue(fileName, out var request);
+
+        if (request != null)
+        {
+            return request.Progress;
+        }
+        else
+        {
+            return null;
+        }
+
+    }
+
     /// <summary>
     /// Cache specific hooks to process items from HTTP response
     /// </summary>
     /// <param name="stream">input stream</param>
-    /// <param name="initializerKeyValues">key value pairs used when initializing instance of generic type</param>
     /// <returns>awaitable task</returns>
-    protected abstract Task<T> InitializeTypeAsync(Stream stream, List<KeyValuePair<string, object>>? initializerKeyValues = null);
+    protected abstract Task<T> InitializeTypeAsync(Stream stream);
 
     /// <summary>
     /// Cache specific hooks to process items from HTTP response
     /// </summary>
     /// <param name="baseFile">storage file</param>
-    /// <param name="initializerKeyValues">key value pairs used when initializing instance of generic type</param>
     /// <returns>awaitable task</returns>
-    protected abstract Task<T> InitializeTypeAsync(StorageFile baseFile, List<KeyValuePair<string, object>>? initializerKeyValues = null);
+    protected abstract Task<T> InitializeTypeAsync(StorageFile baseFile);
 
     /// <summary>
     /// Override-able method that checks whether file is valid or not.
@@ -334,7 +332,7 @@ public abstract class CacheBase<T>
     }
 
 
-    private async Task<T?> GetItemAsync(Uri uri, bool throwOnError, bool preCacheOnly, CancellationToken cancellationToken, List<KeyValuePair<string, object>>? initializerKeyValues = null)
+    private async Task<T?> GetItemAsync(Uri uri, bool throwOnError, bool preCacheOnly, CancellationToken cancellationToken)
     {
         T? instance = default;
 
@@ -350,10 +348,12 @@ public abstract class CacheBase<T>
 
         if (request == null)
         {
+            var progress = new Progress<DownloadProgress>();
             request = new ConcurrentRequest()
             {
-                Task = GetFromCacheOrDownloadAsync(uri, fileName, preCacheOnly, cancellationToken, initializerKeyValues),
-                EnsureCachedCopy = preCacheOnly
+                Task = GetFromCacheOrDownloadAsync(uri, fileName, preCacheOnly, cancellationToken, progress),
+                Progress = progress,
+                EnsureCachedCopy = preCacheOnly,
             };
 
             _concurrentTasks[fileName] = request;
@@ -379,7 +379,10 @@ public abstract class CacheBase<T>
         return instance;
     }
 
-    private async Task<T?> GetFromCacheOrDownloadAsync(Uri uri, string fileName, bool preCacheOnly, CancellationToken cancellationToken, List<KeyValuePair<string, object>>? initializerKeyValues = null)
+
+
+
+    private async Task<T?> GetFromCacheOrDownloadAsync(Uri uri, string fileName, bool preCacheOnly, CancellationToken cancellationToken, IProgress<DownloadProgress>? progress = null)
     {
         T? instance = default;
 
@@ -416,19 +419,24 @@ public abstract class CacheBase<T>
                 {
                     try
                     {
-                        instance = await DownloadFileAsync(uri, baseFile, preCacheOnly, cancellationToken, initializerKeyValues).ConfigureAwait(false);
+                        instance = await DownloadFileAsync(uri, baseFile, preCacheOnly, cancellationToken, progress).ConfigureAwait(false);
 
                         if (instance != null)
                         {
                             break;
                         }
                     }
-                    catch (FileNotFoundException)
-                    {
-                    }
+                    catch (HttpRequestException) { }
+                    catch (FileNotFoundException) { }
 
                     retries++;
                 }
+            }
+            catch (TaskCanceledException)
+            {
+                await baseFile.DeleteAsync().AsTask().ConfigureAwait(false);
+                progress?.Report(new DownloadProgress(DownloadState.Canceled, 0, -1));
+                throw; // re-throwing the exception changes the stack trace. just throw
             }
             catch (Exception)
             {
@@ -439,7 +447,7 @@ public abstract class CacheBase<T>
 
         if (EqualityComparer<T>.Default.Equals(instance, default) && !preCacheOnly)
         {
-            instance = await InitializeTypeAsync(baseFile, initializerKeyValues).ConfigureAwait(false);
+            instance = await InitializeTypeAsync(baseFile).ConfigureAwait(false);
 
             if (_inMemoryFileStorage.MaxItemCount > 0)
             {
@@ -453,28 +461,78 @@ public abstract class CacheBase<T>
         return instance;
     }
 
-    private async Task<T?> DownloadFileAsync(Uri uri, StorageFile baseFile, bool preCacheOnly, CancellationToken cancellationToken, List<KeyValuePair<string, object>>? initializerKeyValues = null)
+    private async Task<T?> DownloadFileAsync(Uri uri, StorageFile baseFile, bool preCacheOnly, CancellationToken cancellationToken, IProgress<DownloadProgress>? progress = null)
     {
         T? instance = default;
 
-        using var hs = await HttpClient.GetStreamAsync(uri, cancellationToken);
+        var request = GetHttpRequestMessage(uri);
+
+        progress?.Report(new DownloadProgress(DownloadState.Pending, 0, -1));
+
+        var response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        long? contentLength = response.Content.Headers.ContentLength;
+
+        progress?.Report(new DownloadProgress(DownloadState.Pending, 0, contentLength));
+
+        long bytesRecieved = 0;
+
+        using var hs = await response.Content.ReadAsStreamAsync(cancellationToken);
+
+        byte[] buffer = new byte[8192];
+
         var ms = new MemoryStream();
-        await hs.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+
+        int read = 0;
+
+        var sw = Stopwatch.StartNew();
+        long lastMs = 0;
+
+        do
+        {
+            read = await hs.ReadAsync(buffer, 0, 8192).ConfigureAwait(false);
+            await ms.WriteAsync(buffer, 0, read).ConfigureAwait(false);
+            bytesRecieved += read;
+            var nowMs = sw.ElapsedMilliseconds;
+            if (nowMs - lastMs > 100)
+            {
+                progress?.Report(new DownloadProgress(DownloadState.Downloading, bytesRecieved, contentLength));
+                lastMs = nowMs;
+            }
+        } while (read > 0);
+
+        sw.Stop();
+
         await ms.FlushAsync().ConfigureAwait(false);
         ms.Position = 0;
+
+        progress?.Report(new DownloadProgress(DownloadState.Downloading, bytesRecieved, contentLength));
 
         using var fs = await baseFile.OpenStreamForWriteAsync();
         await ms.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
         await fs.FlushAsync().ConfigureAwait(false);
 
+        progress?.Report(new DownloadProgress(DownloadState.Completed, bytesRecieved, contentLength));
+
         // if its pre-cache we aren't looking to load items in memory
         if (!preCacheOnly)
         {
-            instance = await InitializeTypeAsync(baseFile, initializerKeyValues).ConfigureAwait(false);
+            instance = await InitializeTypeAsync(baseFile).ConfigureAwait(false);
         }
 
         return instance;
     }
+
+
+
+    protected virtual HttpRequestMessage GetHttpRequestMessage(Uri uri)
+    {
+        return new HttpRequestMessage(HttpMethod.Get, uri);
+    }
+
+
+
 
     private static async Task InternalClearAsync(IEnumerable<StorageFile> files)
     {
@@ -553,4 +611,9 @@ public abstract class CacheBase<T>
         }
         return Path.Combine(_cacheFolder!.Path, GetCacheFileName(uri));
     }
+
 }
+
+
+
+

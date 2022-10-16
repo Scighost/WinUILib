@@ -111,7 +111,7 @@ public class InMemoryStorage<T>
     /// <param name="id">id of the in-memory storage item</param>
     /// <param name="duration">timespan denoting expiration</param>
     /// <returns>Valid item if not out of date or return null if out of date or item does not exist</returns>
-    public InMemoryStorageItem<T> GetItem(string id, TimeSpan duration)
+    public InMemoryStorageItem<T>? GetItem(string id, TimeSpan duration)
     {
         if (!_inMemoryStorage.TryGetValue(id, out var tempItem))
         {
