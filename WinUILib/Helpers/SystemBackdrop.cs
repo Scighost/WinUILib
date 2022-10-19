@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using Windows.UI;
 using WinRT;
 
-namespace Pica3.Helpers;
+namespace Scighost.WinUILib.Helpers;
 
 public class SystemBackdrop
 {
@@ -145,7 +145,7 @@ public class SystemBackdrop
     {
         if (configurationSource != null)
         {
-            configurationSource.IsInputActive = alwaysActive || (args.WindowActivationState != WindowActivationState.Deactivated);
+            configurationSource.IsInputActive = alwaysActive || args.WindowActivationState != WindowActivationState.Deactivated;
         }
     }
 

@@ -9,7 +9,7 @@
 		<LangVersion>preview</LangVersion>
 		<AssemblyName>Scighost.WinUILib</AssemblyName>
 		<AssemblyVersion>1.0.0</AssemblyVersion>
-		<Version>0.1.0</Version>
+		<Version>0.1.1</Version>
 		<Authors>Scighost</Authors>
 		<RepositoryUrl>https://github.com/Scighost/WinUILib</RepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
