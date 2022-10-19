@@ -62,6 +62,19 @@ public static class ClipboardHelper
 
 
 
+    public static void SetStorageItems(DataPackageOperation operation, params IStorageItem[] items)
+    {
+        var data = new DataPackage
+        {
+            RequestedOperation = operation,
+        };
+        data.SetStorageItems(items);
+        Clipboard.SetContent(data);
+        Clipboard.Flush();
+    }
+
+
+
     public static async Task<string?> GetTextAsync()
     {
         var data = Clipboard.GetContent();

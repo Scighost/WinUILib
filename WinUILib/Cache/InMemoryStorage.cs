@@ -14,8 +14,8 @@ namespace Scighost.WinUILib.Cache;
 public class InMemoryStorage<T>
 {
     private int _maxItemCount;
-    private ConcurrentDictionary<string, InMemoryStorageItem<T>> _inMemoryStorage = new ConcurrentDictionary<string, InMemoryStorageItem<T>>();
-    private object _settingMaxItemCountLocker = new object();
+    private readonly ConcurrentDictionary<string, InMemoryStorageItem<T>> _inMemoryStorage = new();
+    private readonly object _settingMaxItemCountLocker = new();
 
     /// <summary>
     /// Gets or sets the maximum count of Items that can be stored in this InMemoryStorage instance.
@@ -132,7 +132,7 @@ public class InMemoryStorage<T>
 
     private void EnsureStorageBounds(int maxCount)
     {
-        if (_inMemoryStorage.Count == 0)
+        if (_inMemoryStorage.IsEmpty)
         {
             return;
         }

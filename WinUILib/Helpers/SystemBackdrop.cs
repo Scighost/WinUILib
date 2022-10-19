@@ -1,85 +1,94 @@
 ﻿using Microsoft.UI.Composition;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
+using System.Net;
 using System.Runtime.InteropServices;
+using Windows.UI;
 using WinRT;
 
-namespace Scighost.WinUILib.Helpers;
+namespace Pica3.Helpers;
 
 public class SystemBackdrop
 {
 
-    private readonly Window m_window;
+    private readonly Window _window;
 
-    private WindowsSystemDispatcherQueueHelper? m_wsdqHelper; // See below for implementation.
+    private WindowsSystemDispatcherQueueHelper? wsdqHelper; // See below for implementation.
 
-    private SystemBackdropConfiguration? m_configurationSource;
+    private SystemBackdropConfiguration? configurationSource;
 
-    private MicaController? m_micaController;
+    private MicaController? micaController;
 
-    private DesktopAcrylicController? m_acrylicController;
+    private DesktopAcrylicController? acrylicController;
 
-    private bool m_alwaysActive;
+    private SystemBackdropProperty? backdropProperty;
+
+    private bool alwaysActive;
 
 
 
 
-    public SystemBackdrop(Window window)
+    public SystemBackdrop(Window window, SystemBackdropProperty? backdropProperty = null)
     {
         ArgumentNullException.ThrowIfNull(window);
-        m_window = window;
+        _window = window;
+        this.backdropProperty = backdropProperty;
     }
 
 
 
-    public bool Reset()
+    public void ResetBackdrop()
     {
-        if (m_micaController != null)
-        {
-            m_micaController.Dispose();
-            m_micaController = null;
-        }
-        if (m_acrylicController != null)
-        {
-            m_acrylicController.Dispose();
-            m_acrylicController = null;
-        }
-        m_window.Activated -= Window_Activated;
-        m_window.Closed -= Window_Closed;
-        ((FrameworkElement)m_window.Content).ActualThemeChanged -= Window_ThemeChanged;
-        m_configurationSource = null;
-        m_alwaysActive = false;
-        return true;
+        micaController?.Dispose();
+        micaController = null;
+        acrylicController?.Dispose();
+        acrylicController = null;
+        _window.Activated -= Window_Activated;
+        _window.Closed -= Window_Closed;
+        ((FrameworkElement)_window.Content).ActualThemeChanged -= Window_ThemeChanged;
+        configurationSource = null;
+        alwaysActive = false;
+    }
+
+
+
+    public void SetBackdropProperty(SystemBackdropProperty? backdropProperty = null)
+    {
+        micaController?.ResetProperties();
+        acrylicController?.ResetProperties();
+        this.backdropProperty = backdropProperty;
+        SetControllerProperties();
     }
 
 
 
     public bool TrySetMica(bool useMicaAlt = false, bool fallbackToAcrylic = false, bool alwaysActive = false)
     {
-        Reset();
+        ResetBackdrop();
         if (MicaController.IsSupported())
         {
-            m_wsdqHelper = new WindowsSystemDispatcherQueueHelper();
-            m_wsdqHelper.EnsureWindowsSystemDispatcherQueueController();
+            wsdqHelper = new WindowsSystemDispatcherQueueHelper();
+            wsdqHelper.EnsureWindowsSystemDispatcherQueueController();
 
             // Create the policy object.
-            m_configurationSource = new SystemBackdropConfiguration();
-            m_window.Activated += Window_Activated;
-            m_window.Closed += Window_Closed;
-            ((FrameworkElement)m_window.Content).ActualThemeChanged += Window_ThemeChanged;
+            configurationSource = new SystemBackdropConfiguration();
+            _window.Activated += Window_Activated;
+            _window.Closed += Window_Closed;
+            ((FrameworkElement)_window.Content).ActualThemeChanged += Window_ThemeChanged;
 
             // Initial configuration state.
-            m_configurationSource.IsInputActive = true;
+            configurationSource.IsInputActive = true;
             SetConfigurationSourceTheme();
 
-            m_micaController = new MicaController { Kind = useMicaAlt ? MicaKind.BaseAlt : MicaKind.Base };
+            micaController = new MicaController { Kind = useMicaAlt ? MicaKind.BaseAlt : MicaKind.Base };
+            SetControllerProperties();
 
             // Enable the system backdrop.
             // Note: Be sure to have "using WinRT;" to support the Window.As<...>() call.
-            m_micaController.AddSystemBackdropTarget(m_window.As<ICompositionSupportsSystemBackdrop>());
-            m_micaController.SetSystemBackdropConfiguration(m_configurationSource);
+            micaController.AddSystemBackdropTarget(_window.As<ICompositionSupportsSystemBackdrop>());
+            micaController.SetSystemBackdropConfiguration(configurationSource);
 
-            m_alwaysActive = alwaysActive;
+            this.alwaysActive = alwaysActive;
             return true; // succeeded
         }
         else if (fallbackToAcrylic)
@@ -96,30 +105,31 @@ public class SystemBackdrop
 
     public bool TrySetAcrylic(bool alwaysActive = false)
     {
-        Reset();
+        ResetBackdrop();
         if (DesktopAcrylicController.IsSupported())
         {
-            m_wsdqHelper = new WindowsSystemDispatcherQueueHelper();
-            m_wsdqHelper.EnsureWindowsSystemDispatcherQueueController();
+            wsdqHelper = new WindowsSystemDispatcherQueueHelper();
+            wsdqHelper.EnsureWindowsSystemDispatcherQueueController();
 
             // Create the policy object.
-            m_configurationSource = new SystemBackdropConfiguration();
-            m_window.Activated += Window_Activated;
-            m_window.Closed += Window_Closed;
-            ((FrameworkElement)m_window.Content).ActualThemeChanged += Window_ThemeChanged;
+            configurationSource = new SystemBackdropConfiguration();
+            _window.Activated += Window_Activated;
+            _window.Closed += Window_Closed;
+            ((FrameworkElement)_window.Content).ActualThemeChanged += Window_ThemeChanged;
 
             // Initial configuration state.
-            m_configurationSource.IsInputActive = true;
+            configurationSource.IsInputActive = true;
             SetConfigurationSourceTheme();
 
-            m_acrylicController = new DesktopAcrylicController();
+            acrylicController = new DesktopAcrylicController();
+            SetControllerProperties();
 
             // Enable the system backdrop.
             // Note: Be sure to have "using WinRT;" to support the Window.As<...>() call.
-            m_acrylicController.AddSystemBackdropTarget(m_window.As<ICompositionSupportsSystemBackdrop>());
-            m_acrylicController.SetSystemBackdropConfiguration(m_configurationSource);
+            acrylicController.AddSystemBackdropTarget(_window.As<ICompositionSupportsSystemBackdrop>());
+            acrylicController.SetSystemBackdropConfiguration(configurationSource);
 
-            m_alwaysActive = alwaysActive;
+            this.alwaysActive = alwaysActive;
             return true; // succeeded
         }
         else
@@ -133,39 +143,107 @@ public class SystemBackdrop
 
     private void Window_Activated(object sender, WindowActivatedEventArgs args)
     {
-        if (m_configurationSource != null)
+        if (configurationSource != null)
         {
-            m_configurationSource.IsInputActive = m_alwaysActive || (args.WindowActivationState != WindowActivationState.Deactivated);
+            configurationSource.IsInputActive = alwaysActive || (args.WindowActivationState != WindowActivationState.Deactivated);
         }
     }
 
 
     private void Window_ThemeChanged(FrameworkElement sender, object args)
     {
-        if (m_configurationSource != null)
+        if (configurationSource != null)
         {
             SetConfigurationSourceTheme();
+        }
+        if (backdropProperty != null)
+        {
+            SetControllerProperties();
         }
     }
 
 
     private void Window_Closed(object sender, WindowEventArgs args)
     {
-        Reset();
+        ResetBackdrop();
     }
 
 
 
     private void SetConfigurationSourceTheme()
     {
-        if (m_configurationSource != null)
+        if (configurationSource != null)
         {
-            m_configurationSource.Theme = ((FrameworkElement)m_window.Content).ActualTheme switch
+            configurationSource.Theme = ((FrameworkElement)_window.Content).ActualTheme switch
             {
                 ElementTheme.Light => SystemBackdropTheme.Light,
                 ElementTheme.Dark => SystemBackdropTheme.Dark,
                 _ => SystemBackdropTheme.Default,
             };
+        }
+    }
+
+
+
+    private void SetControllerProperties()
+    {
+        if (backdropProperty != null)
+        {
+            var actualTheme = ((FrameworkElement)_window.Content).ActualTheme;
+            if (acrylicController != null)
+            {
+                acrylicController.FallbackColor = actualTheme switch
+                {
+                    ElementTheme.Light => backdropProperty.FallbackColorLight.ToColor(),
+                    ElementTheme.Dark => backdropProperty.FallbackColorDark.ToColor(),
+                    _ => acrylicController.FallbackColor,
+                };
+                acrylicController.LuminosityOpacity = actualTheme switch
+                {
+                    ElementTheme.Light => backdropProperty.LuminosityOpacityLight,
+                    ElementTheme.Dark => backdropProperty.LuminosityOpacityDark,
+                    _ => acrylicController.LuminosityOpacity,
+                };
+                acrylicController.TintColor = actualTheme switch
+                {
+                    ElementTheme.Light => backdropProperty.TintColorLight.ToColor(),
+                    ElementTheme.Dark => backdropProperty.TintColorDark.ToColor(),
+                    _ => acrylicController.TintColor,
+                };
+                acrylicController.TintOpacity = actualTheme switch
+                {
+                    ElementTheme.Light => backdropProperty.TintOpacityLight,
+                    ElementTheme.Dark => backdropProperty.TintOpacityDark,
+                    _ => acrylicController.TintOpacity,
+                };
+            }
+            if (micaController != null)
+            {
+                micaController.FallbackColor = actualTheme switch
+                {
+                    ElementTheme.Light => backdropProperty.FallbackColorLight.ToColor(),
+                    ElementTheme.Dark => backdropProperty.FallbackColorDark.ToColor(),
+                    _ => micaController.FallbackColor,
+                };
+                micaController.LuminosityOpacity = actualTheme switch
+                {
+                    ElementTheme.Light => backdropProperty.LuminosityOpacityLight,
+                    ElementTheme.Dark => backdropProperty.LuminosityOpacityDark,
+                    _ => micaController.LuminosityOpacity,
+                };
+                micaController.TintColor = actualTheme switch
+                {
+                    ElementTheme.Light => backdropProperty.TintColorLight.ToColor(),
+                    ElementTheme.Dark => backdropProperty.TintColorDark.ToColor(),
+                    _ => micaController.TintColor,
+                };
+                micaController.TintOpacity = actualTheme switch
+                {
+                    ElementTheme.Light => backdropProperty.TintOpacityLight,
+                    ElementTheme.Dark => backdropProperty.TintOpacityDark,
+                    _ => micaController.TintOpacity,
+                };
+            }
         }
     }
 
@@ -200,10 +278,111 @@ public class SystemBackdrop
                 options.threadType = 2;    // DQTYPE_THREAD_CURRENT
                 options.apartmentType = 2; // DQTAT_COM_STA
 
-                CreateDispatcherQueueController(options, ref m_dispatcherQueueController);
+                _ = CreateDispatcherQueueController(options, ref m_dispatcherQueueController);
             }
         }
     }
 
 
+}
+
+
+
+public record SystemBackdropProperty
+{
+
+#if NET7_0_OR_GREATER
+
+    public required uint FallbackColorDark { get; init; }
+
+    public required uint FallbackColorLight { get; init; }
+
+    public required float LuminosityOpacityDark { get; init; }
+
+    public required float LuminosityOpacityLight { get; init; }
+
+    public required uint TintColorDark { get; init; }
+
+    public required uint TintColorLight { get; init; }
+
+    public required float TintOpacityDark { get; init; }
+
+    public required float TintOpacityLight { get; init; }
+
+#else
+
+    public uint FallbackColorDark { get; init; }
+
+    public uint FallbackColorLight { get; init; }
+
+    public float LuminosityOpacityDark { get; init; }
+
+    public float LuminosityOpacityLight { get; init; }
+
+    public uint TintColorDark { get; init; }
+
+    public uint TintColorLight { get; init; }
+
+    public float TintOpacityDark { get; init; }
+
+    public float TintOpacityLight { get; init; }
+
+#endif
+
+
+    public static readonly SystemBackdropProperty AcrylicDefault = new()
+    {
+        FallbackColorDark = 0xFF545454,
+        FallbackColorLight = 0xFFD3D3D3,
+        LuminosityOpacityDark = 0.64f,
+        LuminosityOpacityLight = 0.64f,
+        TintColorDark = 0xFF545454,
+        TintColorLight = 0xFFD3D3D3,
+        TintOpacityDark = 0,
+        TintOpacityLight = 0,
+    };
+
+    public static readonly SystemBackdropProperty MicaDefault = new()
+    {
+        FallbackColorDark = 0xFF202020,
+        FallbackColorLight = 0xFFF3F3F3,
+        LuminosityOpacityDark = 1,
+        LuminosityOpacityLight = 1,
+        TintColorDark = 0xFF202020,
+        TintColorLight = 0xFFF3F3F3,
+        TintOpacityDark = 0.8f,
+        TintOpacityLight = 0.5f,
+    };
+
+    public static readonly SystemBackdropProperty MicaAltDefault = new()
+    {
+        FallbackColorDark = 0xFF202020,
+        FallbackColorLight = 0xFFE8E8E8,
+        LuminosityOpacityDark = 1,
+        LuminosityOpacityLight = 1,
+        TintColorDark = 0xFF0A0A0A,
+        TintColorLight = 0xFFDADADA,
+        TintOpacityDark = 0,
+        TintOpacityLight = 0.5f,
+    };
+
+}
+
+
+file static class UInt32ToColorHelper
+{
+    [StructLayout(LayoutKind.Explicit)]
+    private struct UInt32ToColor
+    {
+        [FieldOffset(0)]
+        public uint Value;
+
+        [FieldOffset(0)]
+        public Color Color;
+    }
+
+    public static Color ToColor(this uint value)
+    {
+        return new UInt32ToColor { Value = (uint)IPAddress.HostToNetworkOrder((int)value) }.Color;
+    }
 }
