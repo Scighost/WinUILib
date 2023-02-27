@@ -190,59 +190,44 @@ public class SystemBackdrop
         if (backdropProperty != null)
         {
             var actualTheme = ((FrameworkElement)_window.Content).ActualTheme;
-            if (acrylicController != null)
+            if (actualTheme is ElementTheme.Default)
             {
-                acrylicController.FallbackColor = actualTheme switch
-                {
-                    ElementTheme.Light => backdropProperty.FallbackColorLight.ToColor(),
-                    ElementTheme.Dark => backdropProperty.FallbackColorDark.ToColor(),
-                    _ => acrylicController.FallbackColor,
-                };
-                acrylicController.LuminosityOpacity = actualTheme switch
-                {
-                    ElementTheme.Light => backdropProperty.LuminosityOpacityLight,
-                    ElementTheme.Dark => backdropProperty.LuminosityOpacityDark,
-                    _ => acrylicController.LuminosityOpacity,
-                };
-                acrylicController.TintColor = actualTheme switch
-                {
-                    ElementTheme.Light => backdropProperty.TintColorLight.ToColor(),
-                    ElementTheme.Dark => backdropProperty.TintColorDark.ToColor(),
-                    _ => acrylicController.TintColor,
-                };
-                acrylicController.TintOpacity = actualTheme switch
-                {
-                    ElementTheme.Light => backdropProperty.TintOpacityLight,
-                    ElementTheme.Dark => backdropProperty.TintOpacityDark,
-                    _ => acrylicController.TintOpacity,
-                };
+                acrylicController?.ResetProperties();
+                micaController?.ResetProperties();
             }
-            if (micaController != null)
+            if (actualTheme is ElementTheme.Light)
             {
-                micaController.FallbackColor = actualTheme switch
+                if (acrylicController != null)
                 {
-                    ElementTheme.Light => backdropProperty.FallbackColorLight.ToColor(),
-                    ElementTheme.Dark => backdropProperty.FallbackColorDark.ToColor(),
-                    _ => micaController.FallbackColor,
-                };
-                micaController.LuminosityOpacity = actualTheme switch
+                    acrylicController.FallbackColor = backdropProperty.FallbackColorLight.ToColor();
+                    acrylicController.LuminosityOpacity = backdropProperty.LuminosityOpacityLight;
+                    acrylicController.TintColor = backdropProperty.TintColorLight.ToColor();
+                    acrylicController.TintOpacity = backdropProperty.TintOpacityLight;
+                }
+                if (micaController != null)
                 {
-                    ElementTheme.Light => backdropProperty.LuminosityOpacityLight,
-                    ElementTheme.Dark => backdropProperty.LuminosityOpacityDark,
-                    _ => micaController.LuminosityOpacity,
-                };
-                micaController.TintColor = actualTheme switch
+                    micaController.FallbackColor = backdropProperty.FallbackColorLight.ToColor();
+                    micaController.LuminosityOpacity = backdropProperty.LuminosityOpacityLight;
+                    micaController.TintColor = backdropProperty.TintColorLight.ToColor();
+                    micaController.TintOpacity = backdropProperty.TintOpacityLight;
+                }
+            }
+            if (actualTheme is ElementTheme.Dark)
+            {
+                if (acrylicController != null)
                 {
-                    ElementTheme.Light => backdropProperty.TintColorLight.ToColor(),
-                    ElementTheme.Dark => backdropProperty.TintColorDark.ToColor(),
-                    _ => micaController.TintColor,
-                };
-                micaController.TintOpacity = actualTheme switch
+                    acrylicController.FallbackColor = backdropProperty.FallbackColorDark.ToColor();
+                    acrylicController.LuminosityOpacity = backdropProperty.LuminosityOpacityDark;
+                    acrylicController.TintColor = backdropProperty.TintColorDark.ToColor();
+                    acrylicController.TintOpacity = backdropProperty.TintOpacityDark;
+                }
+                if (micaController != null)
                 {
-                    ElementTheme.Light => backdropProperty.TintOpacityLight,
-                    ElementTheme.Dark => backdropProperty.TintOpacityDark,
-                    _ => micaController.TintOpacity,
-                };
+                    micaController.FallbackColor = backdropProperty.FallbackColorDark.ToColor();
+                    micaController.LuminosityOpacity = backdropProperty.LuminosityOpacityDark;
+                    micaController.TintColor = backdropProperty.TintColorDark.ToColor();
+                    micaController.TintOpacity = backdropProperty.TintOpacityDark;
+                }
             }
         }
     }
@@ -260,9 +245,9 @@ public class SystemBackdrop
         }
 
         [DllImport("CoreMessaging.dll")]
-        private static extern int CreateDispatcherQueueController([In] DispatcherQueueOptions options, [In, Out, MarshalAs(UnmanagedType.IUnknown)] ref object? dispatcherQueueController);
+        private static extern int CreateDispatcherQueueController(in DispatcherQueueOptions options, out nint dispatcherQueueController);
 
-        object? m_dispatcherQueueController = null;
+        nint m_dispatcherQueueController;
         public void EnsureWindowsSystemDispatcherQueueController()
         {
             if (Windows.System.DispatcherQueue.GetForCurrentThread() != null)
@@ -271,14 +256,14 @@ public class SystemBackdrop
                 return;
             }
 
-            if (m_dispatcherQueueController == null)
+            if (m_dispatcherQueueController == 0)
             {
                 DispatcherQueueOptions options;
                 options.dwSize = Marshal.SizeOf(typeof(DispatcherQueueOptions));
                 options.threadType = 2;    // DQTYPE_THREAD_CURRENT
                 options.apartmentType = 2; // DQTAT_COM_STA
 
-                _ = CreateDispatcherQueueController(options, ref m_dispatcherQueueController);
+                _ = CreateDispatcherQueueController(options, out m_dispatcherQueueController);
             }
         }
     }

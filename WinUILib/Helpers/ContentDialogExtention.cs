@@ -5,7 +5,7 @@ using Microsoft.UI.Xaml.Shapes;
 
 namespace Scighost.WinUILib.Helpers;
 
-public static class ContentDialogHelper
+public static class ContentDialogExtention
 {
 
 

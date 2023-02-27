@@ -6,14 +6,15 @@
 		<RuntimeIdentifiers>win10-x86;win10-x64;win10-arm64</RuntimeIdentifiers>
 		<UseWinUI>true</UseWinUI>
 		<Nullable>enable</Nullable>
-		<LangVersion>preview</LangVersion>
+		<LangVersion>latest</LangVersion>
 		<AssemblyName>Scighost.WinUILib</AssemblyName>
 		<AssemblyVersion>1.0.0</AssemblyVersion>
-		<Version>0.1.1</Version>
+		<Version>0.1.2</Version>
 		<Authors>Scighost</Authors>
 		<RepositoryUrl>https://github.com/Scighost/WinUILib</RepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageTags>WinUI</PackageTags>
+		<Description>DO NOT use in your project.</Description>
 	</PropertyGroup>
 
 	<ItemGroup>
